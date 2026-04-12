@@ -1,8 +1,6 @@
 import 'dotenv/config';
-
 import express from 'express';
 import cors from 'cors';
-
 import authRoutes from './routes/authRoutes.js';
 import meetingRoutes from './routes/meetingRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
@@ -15,10 +13,8 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 // CORS Middleware - must be before routes
 app.use(cors({
-  origin: FRONTEND_URL,
-  credentials: true,
-  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin:"*",
+
 }));
 
 // Body parsing middleware
