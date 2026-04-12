@@ -24,12 +24,16 @@ export const registerStudent = async (req, res) => {
  * Login student
  */
 export const loginStudent = async (req, res) => {
+  console.log('[LOGIN] Student login request received');
+  console.time('controller_login_student');
   try {
     const { email, password } = req.body;
     const result = await authService.loginStudent(email, password);
+    console.timeEnd('controller_login_student');
     return res.json({ success: true, data: result });
   } catch (error) {
     console.error(error);
+    console.timeEnd('controller_login_student');
     return res.status(401).json({ success: false, message: error.message });
   }
 };
@@ -58,12 +62,16 @@ export const registerTeacher = async (req, res) => {
  * Login teacher
  */
 export const loginTeacher = async (req, res) => {
+  console.log('[LOGIN] Teacher login request received');
+  console.time('controller_login_teacher');
   try {
     const { email, password } = req.body;
     const result = await authService.loginTeacher(email, password);
+    console.timeEnd('controller_login_teacher');
     return res.json({ success: true, data: result });
   } catch (error) {
     console.error(error);
+    console.timeEnd('controller_login_teacher');
     return res.status(401).json({ success: false, message: error.message });
   }
 };

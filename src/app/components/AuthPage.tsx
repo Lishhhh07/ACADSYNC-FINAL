@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
 import { GraduationCap, Shield, ArrowLeft, Eye, EyeOff, Lock, Mail } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { authAPI, setToken } from "../utils/api";
 
 interface AuthPageProps {
@@ -18,6 +18,24 @@ export function AuthPage({ onBack, onStudentLogin, onFacultyLogin }: AuthPagePro
   const [error, setError] = useState("");
   const [isRegisterMode, setIsRegisterMode] = useState(false);
 
+  // Warm up backend connection on component mount
+  useEffect(() => {
+    const warmupBackend = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        console.log('[AuthPage] Warming up backend connection...');
+        const response = await fetch(`${apiUrl}/health`, { method: 'GET' });
+        if (response.ok) {
+          console.log('[AuthPage] Backend warmup successful');
+        }
+      } catch (error) {
+        console.warn('[AuthPage] Backend warmup failed (this is ok):', error);
+      }
+    };
+    
+    warmupBackend();
+  }, []);
+
   const handleLogin = async () => {
     if (!email || !password) {
       setError("Please enter both email and password");
@@ -27,35 +45,44 @@ export function AuthPage({ onBack, onStudentLogin, onFacultyLogin }: AuthPagePro
     setIsLoading(true);
     setError("");
 
-    try {
-      let response;
-      if (selectedRole === "student") {
-        response = isRegisterMode
-          ? await authAPI.registerStudent(email, password)
-          : await authAPI.loginStudent(email, password);
-      } else {
-        response = isRegisterMode
-          ? await authAPI.registerTeacher(email, password)
-          : await authAPI.loginTeacher(email, password);
-      }
+    // Retry logic: attempt login up to 2 times
+    let lastError: any;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        console.log(`[AuthPage] Login attempt ${attempt}/2`);
+        let response;
+        if (selectedRole === "student") {
+          response = isRegisterMode
+            ? await authAPI.registerStudent(email, password)
+            : await authAPI.loginStudent(email, password);
+        } else {
+          response = isRegisterMode
+            ? await authAPI.registerTeacher(email, password)
+            : await authAPI.loginTeacher(email, password);
+        }
 
-      // Store token - DEBUG
-      console.log("[AUTH] Login response:", response);
-      console.log("[AUTH] Token from response.data.token:", response.data?.token);
-      setToken(response.data.token);
-      console.log("[AUTH] Token stored in localStorage:", localStorage.getItem("token"));
+        // Store token
+        setToken(response.data.token);
 
-      // Navigate to dashboard
-      if (selectedRole === "student") {
-        onStudentLogin();
-      } else {
-        onFacultyLogin();
+        // Navigate to dashboard
+        if (selectedRole === "student") {
+          onStudentLogin();
+        } else {
+          onFacultyLogin();
+        }
+        return;
+      } catch (err: any) {
+        lastError = err;
+        if (attempt < 2) {
+          console.warn(`[AuthPage] Login attempt ${attempt} failed, retrying...`);
+          // Wait 500ms before retrying
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
       }
-    } catch (err: any) {
-      setError(err.message || "Login failed. Please try again.");
-    } finally {
-      setIsLoading(false);
     }
+
+    setError(lastError?.message || "Login failed. Please try again.");
+    setIsLoading(false);
   };
 
   return (

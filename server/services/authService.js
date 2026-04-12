@@ -82,6 +82,7 @@ export const registerStudent = async (email, password) => {
  * Login student
  */
 export const loginStudent = async (email, password) => {
+  console.time('login_total_student');
   console.log('[Auth] Login student request received');
 
   if (!email || !password) {
@@ -90,8 +91,13 @@ export const loginStudent = async (email, password) => {
   }
 
   // Find student
+  console.time('firestore_query_student');
   const studentsRef = db.collection('students');
-  const snapshot = await studentsRef.where('email', '==', email).get();
+  const snapshot = await studentsRef
+  .where('email', '==', email)
+  .limit(1)
+  .get();
+  console.timeEnd('firestore_query_student');
 
   if (snapshot.empty) {
     throw new Error('Invalid email or password');
@@ -101,13 +107,17 @@ export const loginStudent = async (email, password) => {
   const studentData = studentDoc.data();
 
   // Verify password
+  console.time('password_hash_student');
   const isValidPassword = await bcrypt.compare(password, studentData.password);
+  console.timeEnd('password_hash_student');
+  
   if (!isValidPassword) {
     console.log(`[Auth] Invalid password for student: ${email}`);
     throw new Error('Invalid email or password');
   }
 
   // Generate JWT
+  console.time('jwt_generation_student');
   if (!process.env.JWT_SECRET) {
     console.error('[Auth] JWT_SECRET is not set in environment variables');
     throw new Error('Server configuration error');
@@ -118,17 +128,17 @@ export const loginStudent = async (email, password) => {
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
+  console.timeEnd('jwt_generation_student');
 
   console.log(`[Auth] Student logged in successfully: ${email}`);
 
-  // Send login email
-  try {
-    await sendLoginEmail(email, 'Student');
-  } catch (emailError) {
+  // Send login email (non-blocking)
+  sendLoginEmail(email, 'Student').catch((emailError) => {
     console.error('Failed to send login email:', emailError);
     // Don't fail login if email fails
-  }
+  });
 
+  console.timeEnd('login_total_student');
   return {
     token,
     user: {
@@ -213,6 +223,7 @@ export const registerTeacher = async (email, password) => {
  * Login teacher
  */
 export const loginTeacher = async (email, password) => {
+  console.time('login_total_teacher');
   console.log('[Auth] Login teacher request received');
 
   if (!email || !password) {
@@ -221,8 +232,13 @@ export const loginTeacher = async (email, password) => {
   }
 
   // Find teacher
+  console.time('firestore_query_teacher');
   const teachersRef = db.collection('teachers');
-  const snapshot = await teachersRef.where('email', '==', email).get();
+  const snapshot = await teachersRef
+  .where('email', '==', email)
+  .limit(1)
+  .get();
+  console.timeEnd('firestore_query_teacher');
 
   if (snapshot.empty) {
     throw new Error('Invalid email or password');
@@ -232,13 +248,17 @@ export const loginTeacher = async (email, password) => {
   const teacherData = teacherDoc.data();
 
   // Verify password
+  console.time('password_hash_teacher');
   const isValidPassword = await bcrypt.compare(password, teacherData.password);
+  console.timeEnd('password_hash_teacher');
+  
   if (!isValidPassword) {
     console.log(`[Auth] Invalid password for teacher: ${email}`);
     throw new Error('Invalid email or password');
   }
 
   // Generate JWT
+  console.time('jwt_generation_teacher');
   if (!process.env.JWT_SECRET) {
     console.error('[Auth] JWT_SECRET is not set in environment variables');
     throw new Error('Server configuration error');
@@ -249,17 +269,17 @@ export const loginTeacher = async (email, password) => {
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
+  console.timeEnd('jwt_generation_teacher');
 
   console.log(`[Auth] Teacher logged in successfully: ${email}`);
 
-  // Send login email
-  try {
-    await sendLoginEmail(email, 'Teacher');
-  } catch (emailError) {
+  // Send login email (non-blocking)
+  sendLoginEmail(email, 'Teacher').catch((emailError) => {
     console.error('Failed to send login email:', emailError);
     // Don't fail login if email fails
-  }
+  });
 
+  console.timeEnd('login_total_teacher');
   return {
     token,
     user: {

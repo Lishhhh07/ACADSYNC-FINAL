@@ -18,7 +18,6 @@ export const removeToken = (): void => {
 // Helper function to get auth headers
 const getAuthHeaders = (): HeadersInit => {
   const token = getToken();
-  console.log("[API] Token retrieved:", token ? `${token.slice(0, 20)}...` : "null");
   return {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),
@@ -31,6 +30,9 @@ const apiRequest = async <T>(
   options: RequestInit = {}
 ): Promise<T> => {
   const url = `${API_BASE_URL}${endpoint}`;
+  const isDev = import.meta.env.DEV;
+  const startTime = isDev ? performance.now() : 0;
+  
   const config: RequestInit = {
     ...options,
     headers: {
@@ -39,9 +41,9 @@ const apiRequest = async <T>(
     },
   };
 
-  console.log(`[API] ${options.method || 'GET'} ${url}`);
-  console.log(`[API] Headers:`, config.headers);
-  console.log(`[API] Body:`, options.body ? JSON.parse(options.body as string) : "");
+  if (isDev) {
+    console.log(`[API] ${options.method || 'GET'} ${url}`);
+  }
 
   try {
     const response = await fetch(url, config);
@@ -69,7 +71,10 @@ const apiRequest = async <T>(
       throw new Error(errorMessage);
     }
 
-    console.log(`[API] Success: ${response.status}`);
+    if (isDev) {
+      const duration = performance.now() - startTime;
+      console.log(`[API] Success: ${response.status} (${duration.toFixed(2)}ms)`);
+    }
     return data;
   } catch (error: any) {
     // Handle network errors
@@ -104,13 +109,24 @@ export const authAPI = {
   },
 
   loginStudent: async (email: string, password: string) => {
-    return apiRequest<{ token: string; user: any; message: string }>(
-      '/auth/student/login',
-      {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      }
-    );
+    console.log('[API] Student login started');
+    const startTime = performance.now();
+    try {
+      const result = await apiRequest<{ token: string; user: any; message: string }>(
+        '/auth/student/login',
+        {
+          method: 'POST',
+          body: JSON.stringify({ email, password }),
+        }
+      );
+      const duration = performance.now() - startTime;
+      console.log(`[API] Student login completed in ${duration.toFixed(2)}ms`);
+      return result;
+    } catch (error) {
+      const duration = performance.now() - startTime;
+      console.error(`[API] Student login failed after ${duration.toFixed(2)}ms:`, error);
+      throw error;
+    }
   },
 
   // Teacher auth
@@ -125,13 +141,24 @@ export const authAPI = {
   },
 
   loginTeacher: async (email: string, password: string) => {
-    return apiRequest<{ token: string; user: any; message: string }>(
-      '/auth/teacher/login',
-      {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      }
-    );
+    console.log('[API] Teacher login started');
+    const startTime = performance.now();
+    try {
+      const result = await apiRequest<{ token: string; user: any; message: string }>(
+        '/auth/teacher/login',
+        {
+          method: 'POST',
+          body: JSON.stringify({ email, password }),
+        }
+      );
+      const duration = performance.now() - startTime;
+      console.log(`[API] Teacher login completed in ${duration.toFixed(2)}ms`);
+      return result;
+    } catch (error) {
+      const duration = performance.now() - startTime;
+      console.error(`[API] Teacher login failed after ${duration.toFixed(2)}ms:`, error);
+      throw error;
+    }
   },
 };
 
@@ -157,31 +184,19 @@ export const meetingAPI = {
 
   // Confirm meeting (Teacher)
   confirmMeeting: async (meetingId: string) => {
-    console.log('[API] 📡 confirmMeeting() CALLED');
-    console.log('[API] 📡 Preparing to send meetingId:', meetingId);
-    console.log('[API] 📡 Is meetingId defined?', meetingId !== undefined);
-    console.log('[API] 📡 Is meetingId truthy?', !!meetingId);
-    
-    const payload = { meetingId };
-    console.log('[API] 📡 JSON payload:', JSON.stringify(payload));
-    console.log('[API] 📤 CONFIRM - Calling /meetings/confirm with meetingId:', meetingId);
-    
     const response = await apiRequest<{ message: string; meeting: any }>('/meetings/confirm', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ meetingId }),
     });
-    console.log('[API] ✅ CONFIRM - Response:', response);
     return response;
   },
 
   // Reject meeting (Teacher)
   rejectMeeting: async (meetingId: string, reason?: string) => {
-    console.log('[meetingAPI] 📤 REJECT - Calling /meetings/reject with meetingId:', meetingId, 'reason:', reason);
     const response = await apiRequest<{ message: string; meeting: any }>('/meetings/reject', {
       method: 'POST',
       body: JSON.stringify({ meetingId, reason }),
     });
-    console.log('[meetingAPI] ✅ REJECT - Response:', response);
     return response;
   },
 };
